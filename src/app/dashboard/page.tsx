@@ -1,19 +1,37 @@
-import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/session";
-import { getWorkspaceMembership, listWorkspaces } from "@/lib/workspaces";
-import { WorkspaceDashboard } from "@/components/workspace-dashboard";
-export default async function Dashboard() {
-  const session = await requireSession();
-  const workspaces = await listWorkspaces(session.user.id);
-  if (!workspaces.length) redirect("/onboarding");
-  const workspaceId = session.session.activeOrganizationId || workspaces[0].id;
-  const membership = await getWorkspaceMembership(session.user.id, workspaceId);
-  if (!membership) redirect("/onboarding");
+import { portalContext } from "@/lib/portal-context";
+import { PortalShell } from "@/components/portal-ui";
+import { PortalOverview } from "@/components/portal-overview";
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ workspace?: string; view?: string }>;
+}) {
+  const params = await searchParams;
+  const context = await portalContext(params.workspace);
+  const view = [
+    "overview",
+    "projects",
+    "clients",
+    "invoices",
+    "activity",
+  ].includes(params.view || "")
+    ? params.view!
+    : "overview";
   return (
-    <WorkspaceDashboard
-      name={membership.name}
-      userName={session.user.name}
-      role={membership.role}
-    />
+    <PortalShell
+      workspaceId={context.workspaceId}
+      workspaceName={context.membership.name}
+      userName={context.session.user.name}
+      workspaces={context.workspaces}
+      view={view}
+    >
+      <PortalOverview
+        key={context.workspaceId + view}
+        workspaceId={context.workspaceId}
+        userName={context.session.user.name}
+        role={context.membership.role}
+        view={view}
+      />
+    </PortalShell>
   );
 }

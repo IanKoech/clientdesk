@@ -10,10 +10,12 @@ export function AuthForm({
   mode,
   token,
   initialError,
+  googleEnabled = false,
 }: {
   mode: Mode;
   token?: string;
   initialError?: string;
+  googleEnabled?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -65,7 +67,7 @@ export function AuthForm({
       } else
         setMessage(
           mode === "register"
-            ? "Check your email for a verification link. In local development, the link appears in the server terminal."
+            ? "Check your email for a verification link to finish setting up your account."
             : mode === "forgot"
               ? "If an account exists for that email, a reset link has been sent."
               : "Password updated. You can now sign in.",
@@ -151,6 +153,32 @@ export function AuthForm({
                 ? "Sign in to your workspace and pick up where you left off."
                 : "Keep your account secure with a password of at least 12 characters."}
           </p>
+          {googleEnabled && (mode === "login" || mode === "register") && (
+            <button
+              disabled={busy}
+              className="mt-7 w-full rounded-lg border border-[#dbe2d2] bg-white px-5 py-3 text-xs font-medium"
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  const result = await authClient.signIn.social({
+                    provider: "google",
+                    callbackURL: "/dashboard",
+                  });
+                  if (result.error) throw new Error(result.error.message);
+                } catch (err) {
+                  setError(
+                    err instanceof Error
+                      ? err.message
+                      : "Unable to sign in with Google.",
+                  );
+                  setBusy(false);
+                }
+              }}
+            >
+              Continue with Google
+            </button>
+          )}
           <form id="auth-form" className="mt-8 space-y-5" onSubmit={submit}>
             {mode === "register" && (
               <label className="block text-xs font-medium">

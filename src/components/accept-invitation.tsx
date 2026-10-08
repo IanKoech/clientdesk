@@ -19,16 +19,28 @@ export function AcceptInvitation({ id }: { id: string }) {
         onClick={async () => {
           setBusy(true);
           try {
-            const result = await authClient.organization.acceptInvitation({
-              invitationId: id,
-            });
-            if (result.error || !result.data)
-              throw new Error(result.error?.message || "Invalid invitation.");
-            const active = await authClient.organization.setActive({
-              organizationId: result.data.invitation.organizationId,
-            });
-            if (active.error) throw new Error(active.error.message);
-            router.push("/dashboard");
+            if (/^[a-f0-9]{64}$/.test(id)) {
+              const response = await fetch(`/api/project-invitations/${id}`, {
+                method: "POST",
+              });
+              const result = await response.json();
+              if (!response.ok)
+                throw new Error(result.error || "Unable to accept invitation.");
+              router.push(
+                `/dashboard/projects/${result.projectId}?workspace=${encodeURIComponent(result.workspaceId)}`,
+              );
+            } else {
+              const result = await authClient.organization.acceptInvitation({
+                invitationId: id,
+              });
+              if (result.error || !result.data)
+                throw new Error(result.error?.message || "Invalid invitation.");
+              const active = await authClient.organization.setActive({
+                organizationId: result.data.invitation.organizationId,
+              });
+              if (active.error) throw new Error(active.error.message);
+              router.push("/dashboard");
+            }
             router.refresh();
           } catch (err) {
             setError(err instanceof Error ? err.message : "Please try again.");

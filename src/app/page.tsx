@@ -131,7 +131,7 @@ export default function Home() {
         </section>
       </main>
       <footer className="flex justify-between border-t border-[#dfe4d8] py-7 text-xs text-[#89917f]">
-        <span>ClientDesk · Foundation release</span>
+        <span>ClientDesk · Freelancer & client portal</span>
         <span>Make space for good work.</span>
       </footer>
     </div>

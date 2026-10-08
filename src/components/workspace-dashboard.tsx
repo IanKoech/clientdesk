@@ -63,7 +63,7 @@ export function WorkspaceDashboard({
             >
               <Icon size={15} />
               {label}
-              {i !== 0 && <span className="ml-auto text-[8px]">Soon</span>}
+              {i !== 0 && <span className="ml-auto text-[8px]">Preview</span>}
             </div>
           ))}
         </nav>
@@ -75,7 +75,7 @@ export function WorkspaceDashboard({
             </p>
           </div>
           <p className="mt-5 text-[10px] text-[#89977a]">
-            ClientDesk / Foundation release
+            ClientDesk / Read-only demo
           </p>
         </div>
       </aside>
@@ -127,7 +127,7 @@ export function WorkspaceDashboard({
               </p>
             </div>
             <span className="flex items-center gap-2 rounded-lg border border-[#d8e1cc] px-4 py-3 text-xs text-[#7c8b69]">
-              <Plus size={14} /> Project creation coming next
+              <Plus size={14} /> Create an account to start
             </span>
           </div>
           <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -148,7 +148,7 @@ export function WorkspaceDashboard({
                 FileText,
                 "Outstanding invoices",
                 demo ? "KES 84,000" : "KES 0",
-                "Payment tracking coming next",
+                "Manual payment tracking",
               ],
               [
                 Check,
