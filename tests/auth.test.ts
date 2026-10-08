@@ -18,6 +18,16 @@ const instance = betterAuth({
   ...auth.options,
   // Functional journeys intentionally exceed sign-in throttles; exercise the limiter separately.
   rateLimit: { enabled: false },
+  user: {
+    ...auth.options.user,
+    deleteUser: {
+      ...auth.options.user?.deleteUser,
+      enabled: true,
+      sendDeleteAccountVerification: async ({ user, url }) => {
+        emails.push({ email: user.email, url, kind: "delete" });
+      },
+    },
+  },
   emailVerification: {
     ...auth.options.emailVerification,
     sendVerificationEmail: async ({ user, url }) => {
@@ -247,6 +257,85 @@ test("ClientDesk authentication and workspace boundaries", async (t) => {
           );
         assert.equal((await login()).status, 200);
         assert.equal((await login()).status, 429);
+      },
+    );
+    await t.test(
+      "profile update, password change, and email-confirmed account deletion",
+      async () => {
+        const login = await request("sign-in/email", {
+          email,
+          password: "another-strong-test-password",
+        });
+        assert.equal(login.status, 200);
+        cookie = cookieFrom(login);
+        const update = await request(
+          "update-user",
+          { name: "Updated Name" },
+          cookie,
+        );
+        assert.equal(update.status, 200);
+        const changed = await request(
+          "change-password",
+          {
+            currentPassword: "another-strong-test-password",
+            newPassword: "third-strong-test-password",
+            revokeOtherSessions: true,
+          },
+          cookie,
+        );
+        assert.equal(changed.status, 200);
+        assert.equal(
+          (
+            await request("sign-in/email", {
+              email,
+              password: "another-strong-test-password",
+            })
+          ).status,
+          401,
+        );
+        const fresh = await request("sign-in/email", {
+          email,
+          password: "third-strong-test-password",
+        });
+        assert.equal(fresh.status, 200);
+        cookie = cookieFrom(fresh);
+        const current = await (
+          await request("get-session", undefined, cookie)
+        ).json();
+        assert.equal(current.user.name, "Updated Name");
+        const requested = await request(
+          "delete-user",
+          { password: "third-strong-test-password", callbackURL: "/" },
+          cookie,
+        );
+        assert.equal(requested.status, 200);
+        assert.equal(
+          (await db.query('SELECT 1 FROM "user" WHERE id=$1', [userId]))
+            .rowCount,
+          1,
+        );
+        const mail = emails.findLast(
+          (item) => item.kind === "delete" && item.email === email,
+        );
+        assert.ok(mail);
+        const response = await instance.handler(
+          new Request(mail.url, { headers: { Cookie: cookie } }),
+        );
+        assert.ok([200, 302].includes(response.status));
+        assert.equal(
+          (await db.query('SELECT 1 FROM "user" WHERE id=$1', [userId]))
+            .rowCount,
+          0,
+        );
+        assert.equal(
+          (
+            await db.query(
+              "SELECT 1 FROM organization WHERE id=ANY($1::text[])",
+              [[workspaceId, secondWorkspaceId]],
+            )
+          ).rowCount,
+          0,
+        );
       },
     );
   } finally {
