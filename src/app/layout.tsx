@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/montserrat";
 import "./globals.css";
 export const metadata: Metadata = {
   title: {
