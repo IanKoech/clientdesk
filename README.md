@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ClientDesk
 
-## Getting Started
+A calmer home for freelance projects and client collaboration.
 
-First, run the development server:
+ClientDesk brings workspace membership, projects, milestones, deliverables, feedback, and invoice tracking into a single client portal. This repository is the **foundation release**, not the complete product yet.
+
+## Preview
+
+![ClientDesk demo dashboard](docs/screenshots/dashboard.png)
+
+![ClientDesk registration](docs/screenshots/register.png)
+
+## Stack
+
+- Next.js App Router and React, with TypeScript
+- Tailwind CSS
+- Node.js runtime and PostgreSQL
+- Better Auth for accounts, sessions, email verification, password resets, and organizations
+- SMTP delivery through Nodemailer; development emails appear in the server terminal
+
+## Working in this release
+
+- Responsive landing page and a clearly labeled demo dashboard
+- Email/password registration, verification, sign-in, sign-out, and reset screens
+- Verification-required accounts and seven-day database-backed sessions
+- Password reset revokes existing sessions
+- Auth rate limiting stored in PostgreSQL
+- Workspace onboarding and a server-protected dashboard
+- Membership checks that derive workspace access from the signed-in user
+- Expiring organization invitations and an acceptance screen
+- Business schema for projects, project clients, milestones, deliverables, comments, invoices, and activity
+
+The dashboard modules marked “Soon” are not implemented. Demo projects and metrics are illustrative and do not represent real accounts or database records. The authenticated dashboard starts empty.
+
+## Local development
+
+Use the Node version in `.nvmrc`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+nvm use
+npm ci
+cp .env.example .env.local
+openssl rand -base64 48
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Put the generated secret in `BETTER_AUTH_SECRET`. Start PostgreSQL using `docker compose up -d`, or set `DATABASE_URL` to a dedicated local database. If port 5432 is already occupied, use your existing PostgreSQL instance or change the Compose port and connection string.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run db:migrate
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Visit http://localhost:3000. `/demo` is available without a database account. For real onboarding: register → open the verification link printed in the server terminal → create a workspace → view the protected dashboard.
 
-## Learn More
+## Validation
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Integration tests use a **separate database** whose name ends in `_test`. They create temporary accounts and remove only their own fixtures.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/clientdesk_test npm run db:migrate
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/clientdesk_test npm test
+```
 
-## Deploy on Vercel
+Set `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` for tests too. The test suite does not send production emails. CI starts an isolated PostgreSQL service.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Next release
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Freelancer project creation, client invitations, and project-specific client access.
+2. Milestones, comments, deliverable uploads, and approval history.
+3. Invoice generation and manual payment-status tracking; real payment processing comes later.
+4. Profile settings, password changes, account deletion, and optional Google sign-in.
+5. Activity feed, notification delivery, seeded database demo accounts, and browser flow tests.
+
+## Deployment
+
+Deployment is not provisioned yet. Use a Node-compatible Next.js host with managed PostgreSQL. Run `npm run db:migrate` as a release step, and set `DATABASE_URL`, `BETTER_AUTH_URL`, a fresh `BETTER_AUTH_SECRET`, and SMTP variables from `.env.example`. Use HTTPS and configure your SMTP sender domain. Never reuse development credentials in production.
+
+Before publishing the complete demo, finish project-level client authorization and the remaining flows above. Storage for deliverables will use private object storage and short-lived download URLs; it is not wired in this release.
+
+See [architecture notes](docs/architecture.md) for data boundaries and implementation decisions.
+
+## Dependency audit
+
+Production dependencies currently pass `npm audit --omit=dev`. The generated Next.js ESLint tooling has an unresolved development-only `braces` advisory; the registry currently offers no patched `braces` release. Do not apply the suggested forced downgrade of the Next.js lint configuration without checking compatibility.
