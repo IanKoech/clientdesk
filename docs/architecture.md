@@ -1,31 +1,41 @@
 # Architecture
 
-Next.js serves the React UI and Node.js route handlers from one origin. Better Auth owns account, session, verification, organization, member, invitation, and rate-limit tables. PostgreSQL persists authentication and business data. No authentication tokens are stored in browser local storage.
+Next.js serves the React UI and Node.js route handlers from one origin. Better Auth owns account, session, verification, organization, member, invitation, and rate-limit tables. PostgreSQL stores auth data, business records, private file content, and the email outbox. Montserrat assets are bundled locally with Fontsource.
 
-## Registration and onboarding
+## Accounts and workspace roles
 
-A freelancer registers with a name, email, and password. Email verification is mandatory. A valid verification link starts a session and redirects to onboarding. Workspace creation uses Better Auth’s organization endpoint, making the creator the owner. The dashboard reads the session on the server and checks actual membership before rendering a workspace.
+Registration requires email verification. Valid verification links start a session and redirect to workspace onboarding. Organization creation makes the freelancer the owner. A person can own one workspace and be a client in another; roles belong to memberships rather than global account flags.
 
-An invited client registers or signs in using the invitation’s email, verifies that account, reopens the invitation link, and accepts it. Better Auth checks the invitation and its expiry. The invitation acceptance page is wired; the owner-facing invitation UI is next-release work.
+Protected pages read sessions on the server. Business endpoints require a verified session, perform a membership lookup, and verify project-specific access. Workspace selection from URLs or session state never substitutes for authorization. Profile, password changes, deletion confirmation, and optional Google OAuth use Better Auth APIs.
 
-## Authorization
+## Project access and invitations
 
-Accounts do not carry a global “freelancer” or “client” flag. Membership roles belong to a workspace: owner is the freelancer; member represents a client. This permits one person to own one workspace and be a client in another. Never trust a workspace ID supplied by a browser without looking up the caller’s membership.
+Owners/admins manage workspace projects. Members may read only projects where their user ID appears in `project_client`. That same predicate guards overview lists, details, comments, files, milestones, invoices, and history. Clients cannot create projects, upload freelancer work, change invoice states, or alter project status. Draft invoices remain owner-only. Removing a project client immediately revokes those access predicates.
 
-`getWorkspaceMembership` binds a user ID and organization ID in one parameterized database query. The dashboard does not infer access from an active-organization cookie alone. The schema gives business records workspace IDs and uses composite foreign keys so a milestone or invoice cannot refer to a project in another workspace.
+Project invitations store only a SHA-256 hash of a 256-bit random token. Tokens expire after 48 hours, require the invited email, and are consumed inside a row-locked transaction. Acceptance creates workspace membership if necessary and assigns exactly one project. A unique workspace/user membership index prevents duplicates. Resending an invitation expires earlier unaccepted links for that project/email.
 
-Client membership is not permission to read every project in a workspace. `project_client` will be checked alongside membership in all future client project APIs. No business APIs exist yet; the schema alone does not implement this authorization.
+## Workflow integrity
 
-## Money and files
+Project data and audit entries are written in transactions. Composite foreign keys prevent milestones, invoices, deliverables, and comments from referencing another workspace's projects. Clients can approve or request changes only while a milestone awaits review and has a deliverable. The freelancer uploads revisions and may reopen an approved milestone; previous decisions remain in review history. Completion requires all milestones to be approved. Milestone editing requires an active project.
 
-Invoices store amounts in integer minor units, avoiding floating-point currency errors. Currency is recorded explicitly. Deliverables store metadata and object keys, rather than file bytes or public URLs. Future upload endpoints must validate type and size, verify project access, and issue short-lived private storage URLs.
+Date-only deadlines are returned as calendar-date strings, avoiding timezone shifts.
 
-## Email and deployment
+Invoice states follow draft -> sent -> paid, with void allowed from draft/sent. Paid and void invoices cannot be reopened through the API. Amounts are integer minor units with an explicit currency; totals are grouped by currency rather than mixing currencies.
 
-Local email links appear in the server terminal. Production requires SMTP; missing delivery configuration raises an error rather than printing live reset links. Database-backed auth rate limiting is shared across Node processes. Deployment migrations are additive for this foundation; introduce versioned transactional migrations as the schema evolves.
+## Private files
 
-## Validation limits
+Files are capped at 10 MB and request bodies are read with an enforced byte limit. Accepted types are PDF, PNG, JPEG, WebP, and UTF-8 plain text. Signature checks reject mismatched binary types. Filenames are sanitized. File bytes live in PostgreSQL for this small deployment; no public object URLs are issued. Downloads repeat project authorization and return attachment responses with no-store and nosniff headers. Replace database byte storage with private object storage for larger workloads.
 
-Integration tests cover verification-required sign-in, persistent sessions, logout, workspace ownership, member isolation, and cross-workspace foreign-key enforcement. A build validates TypeScript and all page modules. Full browser journeys, invitation abuse cases, and upload security tests belong to the feature releases that introduce those workflows.
+## Email
 
-Auth flow tests disable throttling to exercise multiple sign-ins quickly, then check throttling separately using an isolated in-memory rate-limit bucket. Production uses database-backed buckets. Configure trusted proxy IP forwarding for the deployment host; without a client IP, the auth library falls back to a shared bucket.
+Email outbox entries are committed alongside business changes, then delivered after the transaction. Delivery states are visible to workspace managers. Pending/failed messages have bounded retries, and the notification script can run on a deployed scheduler. The owner can explicitly retry failures. Authentication emails use Better Auth's delivery callbacks. Development prints email links to the server terminal; production requires SMTP. Provider errors do not undo a successfully saved business mutation.
+
+## Account deletion
+
+Deletion requires the current password in the UI and an expiring email confirmation link. Workspaces where the account is the sole owner are deleted, cascading their projects and files. Shared comments and approval history in other workspaces are retained with null author/reviewer references and rendered as `Former user`. Other owners' workspaces are preserved.
+
+## Operations and validation
+
+Business mutations enforce same-origin checks and a database-backed per-user rate limit. Auth throttles also use database storage. Configure trusted proxy IP forwarding for the deployed host; without a resolved IP the auth library uses a shared bucket. The migration runner records applied SQL files and applies each in a transaction under an advisory lock. Better Auth manages its own schema updates.
+
+Integration tests use separate temporary fixtures in a dedicated `_test` database. They cover the authentication lifecycle, destructive account confirmation, tenant/project isolation, invitation expiry and reuse, uploads/downloads, client revisions/approval, invoice states, access removal, and anonymized shared history. Auth functional tests disable throttling for rapid multi-login journeys and test throttling separately. Browser verification exercised registration through sending an invoice and checked desktop/mobile layout plus Montserrat. External Google OAuth and production SMTP require provider credentials and are not claimed as externally tested.

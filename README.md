@@ -2,37 +2,29 @@
 
 A calmer home for freelance projects and client collaboration.
 
-ClientDesk brings workspace membership, projects, milestones, deliverables, feedback, and invoice tracking into a single client portal. This repository is the **foundation release**, not the complete product yet.
+ClientDesk is a working freelancer/client portal built with **Next.js, React, Tailwind CSS, TypeScript, Node.js, and PostgreSQL**. Montserrat is self-hosted and used throughout the interface.
 
-## Preview
+![Freelancer dashboard](docs/screenshots/dashboard.png)
 
-![ClientDesk demo dashboard](docs/screenshots/dashboard.png)
+![Project milestones, deliverables, clients, and invoices](docs/screenshots/project.png)
 
-![ClientDesk registration](docs/screenshots/register.png)
+## What works
 
-## Stack
+- Registration, mandatory email verification, login/logout, persistent sessions, and password reset.
+- Workspace onboarding and switching; server-side session and membership checks.
+- Optional Google sign-in when OAuth credentials are configured.
+- Freelancer project creation, categories, briefs, due dates, and active/completed/archived states.
+- Project-specific client invitations: expiring, single-use links bound to the invited email address.
+- Milestones, private deliverable uploads/downloads, client approvals, revision requests, and review history.
+- Project comments, client removal, and activity history.
+- Draft invoices, sending, manual paid/void states, and browser printing/save-as-PDF.
+- Profile changes, password changes, and email-confirmed account deletion.
+- Email notifications with an outbox, delivery status, and retries.
+- Seeded freelancer/client accounts and a separate read-only `/demo` preview.
 
-- Next.js App Router and React, with TypeScript
-- Tailwind CSS
-- Node.js runtime and PostgreSQL
-- Better Auth for accounts, sessions, email verification, password resets, and organizations
-- SMTP delivery through Nodemailer; development emails appear in the server terminal
+Clients see only projects assigned to them. Workspace membership alone does not grant access to every project. Draft invoices are hidden from clients. Freelancers cannot approve their own milestones as clients.
 
-## Working in this release
-
-- Responsive landing page and a clearly labeled demo dashboard
-- Email/password registration, verification, sign-in, sign-out, and reset screens
-- Verification-required accounts and seven-day database-backed sessions
-- Password reset revokes existing sessions
-- Auth rate limiting stored in PostgreSQL
-- Workspace onboarding and a server-protected dashboard
-- Membership checks that derive workspace access from the signed-in user
-- Expiring organization invitations and an acceptance screen
-- Business schema for projects, project clients, milestones, deliverables, comments, invoices, and activity
-
-The dashboard modules marked “Soon” are not implemented. Demo projects and metrics are illustrative and do not represent real accounts or database records. The authenticated dashboard starts empty.
-
-## Local development
+## Local setup
 
 Use the Node version in `.nvmrc`:
 
@@ -43,14 +35,36 @@ cp .env.example .env.local
 openssl rand -base64 48
 ```
 
-Put the generated secret in `BETTER_AUTH_SECRET`. Start PostgreSQL using `docker compose up -d`, or set `DATABASE_URL` to a dedicated local database. If port 5432 is already occupied, use your existing PostgreSQL instance or change the Compose port and connection string.
+Put the generated secret in `BETTER_AUTH_SECRET`. Start PostgreSQL with `docker compose up -d`, or set `DATABASE_URL` to a dedicated existing database. If port 5432 is occupied, change the Compose port and connection string, or use your existing PostgreSQL instance.
 
 ```bash
 npm run db:migrate
 npm run dev
 ```
 
-Visit http://localhost:3000. `/demo` is available without a database account. For real onboarding: register → open the verification link printed in the server terminal → create a workspace → view the protected dashboard.
+Visit http://localhost:3000. In development, verification/reset/invitation links appear in the server terminal. Production email delivery requires SMTP.
+
+## Try the complete workflow
+
+1. Register a freelancer and open the email verification link.
+2. Create a workspace, then create a project and add a milestone.
+3. Invite a client using another email address. Open the client invitation link.
+4. In another browser session, register/verify that client account, reopen the invitation, and accept it.
+5. Upload a deliverable as the freelancer.
+6. Comment, approve, or request changes as the client.
+7. Create and send an invoice as the freelancer; record payment manually after receiving it.
+
+## Seeded demo accounts
+
+Set `DEMO_PASSWORD` in `.env.local` to at least 12 characters, then run:
+
+```bash
+npm run seed:demo
+```
+
+Sign in as `freelancer@clientdesk.demo` or `client@clientdesk.demo` using that password. Both accounts are verified for the sample workspace. The seed includes a project, milestones, a downloadable text deliverable, a comment, and an invoice. It can be rerun without overwriting existing projects or account passwords. Use this only for sample data.
+
+`/demo` remains a separate, read-only preview with illustrative metrics. The authenticated dashboard reads real database records.
 
 ## Validation
 
@@ -67,24 +81,30 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/clientdesk_test npm r
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/clientdesk_test npm test
 ```
 
-Set `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` for tests too. The test suite does not send production emails. CI starts an isolated PostgreSQL service.
+Set `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` for tests too. CI starts isolated PostgreSQL and runs migrations, lint, type checking, integration tests, and the production build. Tests cover auth lifecycle, account deletion, invitation expiry/reuse/email mismatch, project isolation, file access, revisions, invoices, and client removal.
 
-## Next release
+The complete registration-to-invoice workflow has also been checked in a real browser. For repeatable screenshots and a seeded UI smoke check, start the app, install a Playwright browser with `npx playwright install chromium`, then run `npm run preview:shots`. You may set `PLAYWRIGHT_BROWSER_PATH` to an installed Chrome executable instead.
 
-1. Freelancer project creation, client invitations, and project-specific client access.
-2. Milestones, comments, deliverable uploads, and approval history.
-3. Invoice generation and manual payment-status tracking; real payment processing comes later.
-4. Profile settings, password changes, account deletion, and optional Google sign-in.
-5. Activity feed, notification delivery, seeded database demo accounts, and browser flow tests.
+## Email and Google configuration
 
-## Deployment
+Set the SMTP variables and `EMAIL_FROM` from `.env.example` for production delivery. The Activity page shows project notification delivery status. `npm run notifications:send` processes the outbox; a deployed scheduler can run it every minute. Failed notifications retry up to three attempts automatically; workspace owners can explicitly retry them from Activity.
 
-Deployment is not provisioned yet. Use a Node-compatible Next.js host with managed PostgreSQL. Run `npm run db:migrate` as a release step, and set `DATABASE_URL`, `BETTER_AUTH_URL`, a fresh `BETTER_AUTH_SECRET`, and SMTP variables from `.env.example`. Use HTTPS and configure your SMTP sender domain. Never reuse development credentials in production.
+For optional Google sign-in, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and register `https://YOUR_DOMAIN/api/auth/callback/google` as the OAuth redirect URI. The Google button appears only when both credentials exist. External OAuth has not been exercised without provider credentials.
 
-Before publishing the complete demo, finish project-level client authorization and the remaining flows above. Storage for deliverables will use private object storage and short-lived download URLs; it is not wired in this release.
+## Storage and invoices
 
-See [architecture notes](docs/architecture.md) for data boundaries and implementation decisions.
+Uploads support PDF, PNG, JPEG, WebP, and plain text, up to **10 MB per file**. Content signatures/types are checked. Files are stored privately in PostgreSQL for this first release and downloaded through authenticated, project-authorized endpoints. There are no public file URLs. This is convenient for a small portfolio deployment; move large workloads to private object storage later.
+
+Invoice amounts use integer minor units. Printing uses the browser's print dialog and PDF export. Invoice payment tracking is manual; the app does not process payments.
+
+## Deployment status
+
+A public deployment has not been provisioned. Use a Node-compatible Next.js host and managed PostgreSQL; set the environment variables, run `npm run db:migrate`, then `npm run build` and `npm start`. Production must have HTTPS, a dedicated auth secret, configured SMTP, and trusted client-IP forwarding appropriate to the host. Do not enable public demo accounts on a workspace containing real client data.
+
+Account deletion removes workspaces where the deleted user is the only owner. In other workspaces, shared comments/approval history remains labeled `Former user`.
+
+See [architecture notes](docs/architecture.md) for data boundaries and decisions.
 
 ## Dependency audit
 
-Production dependencies currently pass `npm audit --omit=dev`. The generated Next.js ESLint tooling has an unresolved development-only `braces` advisory; the registry currently offers no patched `braces` release. Do not apply the suggested forced downgrade of the Next.js lint configuration without checking compatibility.
+Production dependencies pass `npm audit --omit=dev`. The Next.js ESLint tooling has an unresolved development-only `braces` advisory; there is currently no patched `braces` release in the registry. Avoid the suggested forced downgrade of the Next.js lint configuration without verifying compatibility.
