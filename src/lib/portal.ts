@@ -474,7 +474,7 @@ export async function handlePortalRequest(
       request.method === "POST"
     ) {
       requireManager();
-      const bytes = await limitedBody(request, 10 * 1024 * 1024 + 65536);
+      const bytes = await limitedBody(request, 4 * 1024 * 1024 + 65536);
       let form: FormData;
       try {
         form = await new Request(request.url, {
@@ -488,8 +488,8 @@ export async function handlePortalRequest(
         throw new PortalError(400, "Choose a file to upload.");
       }
       const file = form.get("file");
-      if (!(file instanceof File) || !file.size || file.size > 10 * 1024 * 1024)
-        throw new PortalError(400, "Choose a file between 1 byte and 10 MB.");
+      if (!(file instanceof File) || !file.size || file.size > 4 * 1024 * 1024)
+        throw new PortalError(400, "Choose a file between 1 byte and 4 MB.");
       const content = Buffer.from(await file.arrayBuffer());
       if (!fileType(content, file.type))
         throw new PortalError(

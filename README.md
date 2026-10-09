@@ -93,7 +93,7 @@ For optional Google sign-in, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, 
 
 ## Storage and invoices
 
-Uploads support PDF, PNG, JPEG, WebP, and plain text, up to **10 MB per file**. Content signatures/types are checked. Files are stored privately in PostgreSQL for this first release and downloaded through authenticated, project-authorized endpoints. There are no public file URLs. This is convenient for a small portfolio deployment; move large workloads to private object storage later.
+Uploads support PDF, PNG, JPEG, WebP, and plain text, up to **4 MB per file**. Content signatures/types are checked. Files are stored privately in PostgreSQL for this first release and downloaded through authenticated, project-authorized endpoints. There are no public file URLs. This is convenient for a small portfolio deployment; move large workloads to private object storage later.
 
 Invoice amounts use integer minor units. Printing uses the browser's print dialog and PDF export. Invoice payment tracking is manual; the app does not process payments.
 

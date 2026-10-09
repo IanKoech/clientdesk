@@ -24,7 +24,7 @@ Invoice states follow draft -> sent -> paid, with void allowed from draft/sent. 
 
 ## Private files
 
-Files are capped at 10 MB and request bodies are read with an enforced byte limit. Accepted types are PDF, PNG, JPEG, WebP, and UTF-8 plain text. Signature checks reject mismatched binary types. Filenames are sanitized. File bytes live in PostgreSQL for this small deployment; no public object URLs are issued. Downloads repeat project authorization and return attachment responses with no-store and nosniff headers. Replace database byte storage with private object storage for larger workloads.
+Files are capped at 4 MB and request bodies are read with an enforced byte limit. Accepted types are PDF, PNG, JPEG, WebP, and UTF-8 plain text. Signature checks reject mismatched binary types. Filenames are sanitized. File bytes live in PostgreSQL for this small deployment; no public object URLs are issued. Downloads repeat project authorization and return attachment responses with no-store and nosniff headers. Replace database byte storage with private object storage for larger workloads.
 
 ## Email
 

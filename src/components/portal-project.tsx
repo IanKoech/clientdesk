@@ -351,7 +351,7 @@ export function PortalProject({
                               />
                             </label>
                             <p className="mt-2 text-[9px] text-[#89987a]">
-                              PDF, images, or plain text · Up to 10 MB
+                              PDF, images, or plain text · Up to 4 MB
                             </p>
                             <button
                               disabled={busy}
